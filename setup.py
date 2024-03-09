@@ -17,7 +17,7 @@ ext_modules = [
 
 
 setup(
-    name="graph-walker",
+    name="graph-walker-mlg",
     version="1.0.6",
     author="Maixent Chenebaux",
     author_email="max.chbx@gmail.com",
