@@ -64,9 +64,7 @@ py::array_t<uint32_t> randomWalks(py::array_t<uint32_t> _indptr, py::array_t<uin
                 float node_date = dates[indices[z]];
 
                 // Do not walk to nodes that happened later than the starting node
-                if(node_date > start_date){
-                    continue;
-                }
+                if(node_date > start_date) continue;
 
                 adjusted_cumsum += data[z];
             }
@@ -81,17 +79,15 @@ py::array_t<uint32_t> randomWalks(py::array_t<uint32_t> _indptr, py::array_t<uin
             // searchsorted
             float cumsum = 0;
             size_t index = 0;
-            float draw = draws[k - 1];
+            float draw = draws[k - 1] * adjusted_cumsum;
             for (size_t z = start; z < end; z++)
             {
                 float node_date = dates[indices[z]];
 
                 // Do not walk to nodes that happened later than the starting node
-                if(node_date > start_date){
-                    continue;
-                }
+                if(node_date > start_date) continue;
 
-                cumsum += data[z] / adjusted_cumsum;
+                cumsum += data[z];
                 if (draw > cumsum)
                 {
                     continue;
@@ -212,7 +208,7 @@ py::array_t<uint32_t> randomWalksRestart(
     return _walks;
 }
 
-py::array_t<uint32_t> n2vRandomWalks(py::array_t<uint32_t> _indptr, py::array_t<uint32_t> _indices, py::array_t<float> _data, py::array_t<uint32_t> _startNodes, size_t nWalks, size_t walkLen, float p, float q)
+py::array_t<uint32_t> n2vRandomWalks(py::array_t<uint32_t> _indptr, py::array_t<uint32_t> _indices, py::array_t<float> _data, py::array_t<float> _dates, py::array_t<uint32_t> _startNodes, size_t nWalks, size_t walkLen, float p, float q)
 {
     // get data buffers
     py::buffer_info indptrBuf = _indptr.request();
@@ -223,6 +219,9 @@ py::array_t<uint32_t> n2vRandomWalks(py::array_t<uint32_t> _indptr, py::array_t<
 
     py::buffer_info dataBuf = _data.request();
     float *data = (float *)dataBuf.ptr;
+
+    py::buffer_info datesBuf = _dates.request();
+    float *dates = (float *)datesBuf.ptr;
 
     py::buffer_info startNodesBuf = _startNodes.request();
     uint32_t *startNodes = (uint32_t *)startNodesBuf.ptr;
@@ -249,6 +248,7 @@ py::array_t<uint32_t> n2vRandomWalks(py::array_t<uint32_t> _indptr, py::array_t<
         }
 
         size_t step = startNodes[i % nNodes];
+        float start_date = dates[step];
         walks[i * walkLen] = step;
 
         for (size_t k = 1; k < walkLen; k++)
@@ -256,8 +256,19 @@ py::array_t<uint32_t> n2vRandomWalks(py::array_t<uint32_t> _indptr, py::array_t<
             uint32_t start = indptr[step];
             uint32_t end = indptr[step + 1];
 
+            float adjusted_cumsum = 0;
+            for (size_t z = start; z < end; z++)
+            {
+                float node_date = dates[indices[z]];
+
+                // Do not walk to nodes that happened later than the starting node
+                if(node_date > start_date) continue;
+
+                adjusted_cumsum += data[z];
+            }
+
             // if no neighbors, we fill in current node
-            if (start == end)
+            if (start == end || adjusted_cumsum == 0)
             {
                 walks[i * walkLen + k] = step;
                 continue;
@@ -276,6 +287,11 @@ py::array_t<uint32_t> n2vRandomWalks(py::array_t<uint32_t> _indptr, py::array_t<
                 {
                     uint32_t neighbor = indices[z];
                     float weight = data[z];
+                    float neighbor_date = dates[neighbor];
+
+                    // Do not walk to nodes that happened later than the starting node
+                    if(neighbor_date > start_date) continue;
+
                     if (neighbor == prev)
                     {
                         // case where candidate is the previous node
@@ -299,12 +315,21 @@ py::array_t<uint32_t> n2vRandomWalks(py::array_t<uint32_t> _indptr, py::array_t<
                     weightSum += weight;
                 }
 
+                if(weightSum == 0)
+                {
+                    walks[i * walkLen + k] = step;
+                    continue;
+                }
+
                 // searchsorted
                 float cumsum = 0;
                 size_t index = 0;
                 float draw = draws[k - 1] * weightSum;
                 for (size_t z = 0; z < end - start; z++)
                 {
+                    float neighbor_date = dates[indices[z + start]];
+                    if (neighbor_date > start_date) continue;
+
                     cumsum += weights[z];
                     if (draw > cumsum)
                     {
@@ -327,9 +352,12 @@ py::array_t<uint32_t> n2vRandomWalks(py::array_t<uint32_t> _indptr, py::array_t<
                 // searchsorted
                 float cumsum = 0;
                 size_t index = 0;
-                float draw = draws[k - 1];
+                float draw = draws[k - 1] * adjusted_cumsum;
                 for (size_t z = start; z < end; z++)
                 {
+                    float node_date = dates[indices[z]];
+                    if (node_date > start_date) continue;
+
                     cumsum += data[z];
                     if (draw > cumsum)
                     {

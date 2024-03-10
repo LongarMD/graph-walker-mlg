@@ -20,8 +20,9 @@ def random_walks(
     alpha=0,
     start_nodes=None,
     verbose=True,
-    no_future=False,
+    no_future=True,
     weight="weight",
+    date="date",
 ):
     """
     Perform random walks on the graph G.
@@ -36,6 +37,7 @@ def random_walks(
     :param verbose: Print progress
     :param no_future: Do not walk into the future, relative to the start node. Expects a "date" attribute on the nodes.
     :param weight: Edge weight attribute; if None, unweighted
+    :param date: Node date attribute
     :return:
     """
     start_time = time.time()
@@ -46,9 +48,12 @@ def random_walks(
     data = A.data.astype(np.float32)
 
     if no_future is False:
-        raise NotImplementedError("no_future=False is not implemented yet")
+        raise NotImplementedError("no_future=False is not supported")
 
-    dates = np.array([G.nodes[node]["date"] for node in G.nodes], dtype=np.float32)
+    dates = np.array([G.nodes[node][date] for node in G.nodes], dtype=np.float32)
+
+    if len(dates) != len(G.nodes):
+        raise ValueError("Dates array length does not match the number of nodes")
 
     if start_nodes is None:
         start_nodes = np.arange(len(G.nodes)).astype(np.uint32)
@@ -64,10 +69,9 @@ def random_walks(
             #     indptr, indices, data, start_nodes, n_walks, walk_len, alpha
             # )
     else:
-        raise NotImplementedError("Node2Vec is not implemented yet")
-        # walks = _node2vec_random_walks(
-        #     indptr, indices, data, start_nodes, n_walks, walk_len, p, q
-        # )
+        walks = _node2vec_random_walks(
+            indptr, indices, data, dates, start_nodes, n_walks, walk_len, p, q
+        )
 
     if verbose:
         duration = time.time() - start_time
