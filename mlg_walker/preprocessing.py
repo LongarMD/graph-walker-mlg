@@ -5,13 +5,13 @@ from sklearn.preprocessing import normalize
 
 
 def _weight_node(node, G, m, sub_sampling):
-    z = G.degree(node, weight="weight") + 1
+    z = G.degree(node, weight=None) + 1
     weight = 1 / (z**sub_sampling)
     return weight
 
 
-def get_normalized_adjacency(G, sub_sampling=0.1):
-    A = nx.adjacency_matrix(G).astype(np.float32)
+def get_normalized_adjacency(G, sub_sampling=0.1, weight='weight'):
+    A = nx.adjacency_matrix(G, weight=weight).astype(np.float32)
     if sub_sampling != 0:
         m = len(G.edges)
         D_inv = diags([

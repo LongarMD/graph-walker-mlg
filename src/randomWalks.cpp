@@ -9,7 +9,7 @@
 
 namespace py = pybind11;
 
-py::array_t<uint32_t> randomWalks(py::array_t<uint32_t> _indptr, py::array_t<uint32_t> _indices, py::array_t<float> _data, py::array_t<uint32_t> _startNodes, size_t nWalks, size_t walkLen)
+py::array_t<uint32_t> randomWalks(py::array_t<uint32_t> _indptr, py::array_t<uint32_t> _indices, py::array_t<float> _data, py::array_t<float> _dates, py::array_t<uint32_t> _startNodes, size_t nWalks, size_t walkLen)
 {
     // get data buffers
     py::buffer_info indptrBuf = _indptr.request();
@@ -20,6 +20,9 @@ py::array_t<uint32_t> randomWalks(py::array_t<uint32_t> _indptr, py::array_t<uin
 
     py::buffer_info dataBuf = _data.request();
     float *data = (float *)dataBuf.ptr;
+
+    py::buffer_info datesBuf = _dates.request();
+    float *dates = (float *)datesBuf.ptr;
 
     py::buffer_info startNodesBuf = _startNodes.request();
     uint32_t *startNodes = (uint32_t *)startNodesBuf.ptr;
@@ -47,6 +50,7 @@ py::array_t<uint32_t> randomWalks(py::array_t<uint32_t> _indptr, py::array_t<uin
         }
 
         size_t step = startNodes[i % nNodes];
+        float start_date = dates[step];
         walks[i * walkLen] = step;
 
         for (size_t k = 1; k < walkLen; k++)
@@ -54,8 +58,21 @@ py::array_t<uint32_t> randomWalks(py::array_t<uint32_t> _indptr, py::array_t<uin
             uint32_t start = indptr[step];
             uint32_t end = indptr[step + 1];
 
+            float adjusted_cumsum = 0;
+            for (size_t z = start; z < end; z++)
+            {
+                float node_date = dates[indices[z]];
+
+                // Do not walk to nodes that happened later than the starting node
+                if(node_date > start_date){
+                    continue;
+                }
+
+                adjusted_cumsum += data[z];
+            }
+
             // if no neighbors, we fill in current node
-            if (start == end)
+            if (start == end || adjusted_cumsum == 0)
             {
                 walks[i * walkLen + k] = step;
                 continue;
@@ -67,7 +84,14 @@ py::array_t<uint32_t> randomWalks(py::array_t<uint32_t> _indptr, py::array_t<uin
             float draw = draws[k - 1];
             for (size_t z = start; z < end; z++)
             {
-                cumsum += data[z];
+                float node_date = dates[indices[z]];
+
+                // Do not walk to nodes that happened later than the starting node
+                if(node_date > start_date){
+                    continue;
+                }
+
+                cumsum += data[z] / adjusted_cumsum;
                 if (draw > cumsum)
                 {
                     continue;

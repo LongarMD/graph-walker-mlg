@@ -119,3 +119,4 @@ dmypy.json
 **/*.dat
 **/*.npy
 _walker.cpython-39-darwin.so
+*.so
