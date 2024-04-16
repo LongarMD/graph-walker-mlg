@@ -62,9 +62,11 @@ def random_walks(
 
     if p == 1 and q == 1:
         if alpha == 0:
-            walks = _random_walks(indptr, indices, data, dates, start_nodes, n_walks, walk_len)
+            walks = _random_walks(
+                indptr, indices, data, dates, start_nodes, n_walks, walk_len
+            )
         else:
-            raise NotImplementedError("Random walks is not implemented yet")
+            raise NotImplementedError("Random walks with restart is not implemented")
             # walks = _random_walks_with_restart(
             #     indptr, indices, data, start_nodes, n_walks, walk_len, alpha
             # )

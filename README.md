@@ -2,7 +2,7 @@
 
 ```
 pip install pybind11
-pip install graph-walker
+pip install .
 ```
 
 # How to use
